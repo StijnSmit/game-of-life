@@ -1,8 +1,6 @@
 use bevy::{
     prelude::*,
-    utils::HashMap,
 };
-use rand::Rng;
 
 // Constants
 // These constants are defined in `Transform` units.
@@ -39,10 +37,10 @@ enum WallLocation {
 impl WallLocation {
     fn position(&self) -> Vec2 {
         match self {
-            WallLocation::Left => Vec2::new(-(WALL_THICKNESS * 0.5) -(CELL_SIZE * 0.5), (GRID_HEIGHT * CELL_SIZE * 0.5)),
-            WallLocation::Right => Vec2::new((CELL_SIZE * 0.5) + (GRID_WIDTH * CELL_SIZE) + (WALL_THICKNESS * 0.5), (GRID_HEIGHT * CELL_SIZE * 0.5)),
-            WallLocation::Bottom => Vec2::new((GRID_WIDTH * CELL_SIZE * 0.5), -(WALL_THICKNESS * 0.5) -(CELL_SIZE * 0.5)),
-            WallLocation::Top => Vec2::new((GRID_WIDTH * CELL_SIZE * 0.5), (GRID_HEIGHT * CELL_SIZE) + (WALL_THICKNESS * 0.5) + (CELL_SIZE * 0.5)),
+            WallLocation::Left => Vec2::new(-(WALL_THICKNESS * 0.5) -(CELL_SIZE * 0.5), GRID_HEIGHT * CELL_SIZE * 0.5),
+            WallLocation::Right => Vec2::new((CELL_SIZE * 0.5) + (GRID_WIDTH * CELL_SIZE) + (WALL_THICKNESS * 0.5), GRID_HEIGHT * CELL_SIZE * 0.5),
+            WallLocation::Bottom => Vec2::new(GRID_WIDTH * CELL_SIZE * 0.5, -(WALL_THICKNESS * 0.5) -(CELL_SIZE * 0.5)),
+            WallLocation::Top => Vec2::new(GRID_WIDTH * CELL_SIZE * 0.5, (GRID_HEIGHT * CELL_SIZE) + (WALL_THICKNESS * 0.5) + (CELL_SIZE * 0.5)),
         }
     }
 
@@ -58,7 +56,7 @@ impl WallLocation {
     }
 
     fn color(&self) -> Color {
-        CELL_COLOR
+        WALL_COLOR
     }
 }
 
@@ -92,6 +90,7 @@ struct Cell {
     coords: IVec2,
 }
 
+#[derive(Component)]
 struct CellState {
     alive: bool,
 }
@@ -103,9 +102,6 @@ fn setup_camera(mut commands: Commands) {
 }
 
 fn setup(mut commands: Commands) {
-    let mut rng = rand::thread_rng();
-    let color = Color::srgba(0.5, 0.5, 0.5, 1.);
-
     commands
         .spawn(SpatialBundle::from_transform(Transform::from_xyz(
             -(GRID_WIDTH * CELL_SIZE) / 2.,
@@ -123,7 +119,7 @@ fn setup(mut commands: Commands) {
                         SpriteBundle {
                             sprite: Sprite {
                                 custom_size: Some(Vec2::splat(CELL_SIZE)),
-                                color,
+                                color: CELL_COLOR,
                                 ..default()
                             },
                             transform: Transform::from_xyz(
@@ -133,6 +129,8 @@ fn setup(mut commands: Commands) {
                             ),
                             ..default()
                         },
+                        Cell { coords: IVec2::new(x, y) },
+                        CellState { alive: false }
                     ));
                 }
             }
