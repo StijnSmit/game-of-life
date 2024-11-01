@@ -2,6 +2,8 @@ use bevy::{
     prelude::*,
 };
 
+use rand::Rng;
+
 // Constants
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
@@ -23,9 +25,11 @@ const CELL_COLOR: Color = Color::srgb(0., 0., 0.);
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .insert_resource(Time::<Fixed>::from_hz(4.0))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup)
+        .add_systems(FixedUpdate, check_cells)
         .run();
 }
 
@@ -115,6 +119,28 @@ fn setup(mut commands: Commands) {
             builder.spawn(WallBundle::new(WallLocation::Bottom));
             for y in 0..=(GRID_HEIGHT as i32) {
                 for x in 0..=(GRID_WIDTH as i32) {
+
+                    if x == 44 && y == 44 {
+                    builder.spawn((
+                        SpriteBundle {
+                            sprite: Sprite {
+                                custom_size: Some(Vec2::splat(CELL_SIZE)),
+                                color: WALL_COLOR,
+                                ..default()
+                            },
+                            transform: Transform::from_xyz(
+                                CELL_SIZE * x as f32,
+                                CELL_SIZE * y as f32,
+                                0.,
+                            ),
+                            ..default()
+                        },
+                        Cell { coords: IVec2::new(x, y) },
+                        CellState { alive: false }
+                    ));
+                    continue;
+                    }
+                
                     builder.spawn((
                         SpriteBundle {
                             sprite: Sprite {
@@ -129,10 +155,17 @@ fn setup(mut commands: Commands) {
                             ),
                             ..default()
                         },
-                        Cell { coords: IVec2::new(x, y) },
                         CellState { alive: false }
                     ));
                 }
             }
         });
+}
+
+fn check_cells(mut query: Query<&mut Sprite, With<Cell>>) {
+    let mut rng = rand::thread_rng();
+    let random_color = Color::srgb(rng.gen(), rng.gen(), rng.gen());
+    for mut sprite in &mut query {
+        sprite.color = random_color;
+    }
 }
