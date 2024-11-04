@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use std::ops::Add;
 
 // Coordinates of all its 8 neighbouring cells
 const NEIGHBOR_COORDINATES: [IVec2; 8] = [
@@ -26,4 +27,11 @@ const NEIGHBOR_COORDINATES: [IVec2; 8] = [
 pub struct Cell {
     // The 2d coordinates
     pub coords: IVec2,
+}
+
+impl Cell {
+    pub fn get_neighbor_coords(&self) -> [IVec2; 8] {
+        NEIGHBOR_COORDINATES
+            .map(|i| i.add(self.coords))
+    }
 }

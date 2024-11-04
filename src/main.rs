@@ -3,7 +3,6 @@ use bevy::{
 };
 
 use std::collections::HashMap;
-use rand::Rng;
 
 pub mod cell;
 pub mod cell_state;
@@ -13,12 +12,8 @@ use crate::cell::Cell;
 use crate::cell_state::CellState;
 use crate::wall::{WallLocation, WallBundle};
 
-// Constants
-// These constants are defined in `Transform` units.
-// Using the default 2D camera they correspond 1:1 with screen pixels.
-
-const GRID_WIDTH: f32 = 10.;
-const GRID_HEIGHT: f32 = 10.;
+const GRID_WIDTH: f32 = 30.;
+const GRID_HEIGHT: f32 = 30.;
 
 // Walls
 const WALL_THICKNESS: f32 = 10.0;
@@ -28,29 +23,64 @@ pub const CELL_SIZE: f32 = 15.;
 
 // Colors
 const BACKGROUND_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
-const WALL_COLOR: Color = Color::srgb(0.3, 0.3, 0.3);
-const CELL_COLOR: Color = Color::srgb(0., 0., 0.);
+const WALL_COLOR: Color = Color::srgb(0.2, 0.2, 0.2);
+const CELL_COLOR: Color = Color::srgb(0.3, 0.3, 0.3);
+
+const STARTING_CELLS: [IVec2; 8] = [
+    // Tub
+    IVec2::new(20, 21),
+    IVec2::new(19, 20),
+    IVec2::new(21, 20),
+    IVec2::new(20, 19),
+    // Single dot
+    IVec2::new(2, 9),
+    // Blinker
+    IVec2::new(2, 21),
+    IVec2::new(3, 21),
+    IVec2::new(4, 21),
+];
+
+const BLINKER_SHAPE: [IVec2; 3] = [
+    IVec2::new(0, 0),
+    IVec2::new(1, 0),
+    IVec2::new(2, 0),
+];
+
+const GLIDER_SHAPE: [IVec2; 5] = [
+    IVec2::new(0, 1),    
+    IVec2::new(1, 0),    
+    IVec2::new(2, 0),    
+    IVec2::new(2, 1),    
+    IVec2::new(2, 2),    
+];
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(Time::<Fixed>::from_hz(4.0))
+        .insert_resource(Time::<Fixed>::from_hz(2.0))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup)
-        //.add_systems(FixedUpdate, (check_cells, update_cells))
         .add_systems(FixedUpdate, update_cells)
         .run();
 }
 
+// Sets up a shape at a position
+fn setup_shape(shape: &[IVec2], position: IVec2) -> Vec<IVec2>{
+    shape.iter().map(|&cell| cell + position).collect()
+}
+
 // Setups
 fn setup_camera(mut commands: Commands) {
-    // Camera
     commands.spawn(Camera2dBundle::default());
 }
 
+
 fn setup(mut commands: Commands) {
-    let mut rng = rand::thread_rng();
+
+    let mut starting_cells = Vec::from(STARTING_CELLS);
+    starting_cells.extend(setup_shape(&GLIDER_SHAPE, IVec2::new(10, 10)));
+
     commands
         .spawn(SpatialBundle::from_transform(Transform::from_xyz(
             -(GRID_WIDTH * CELL_SIZE) / 2.,
@@ -64,14 +94,14 @@ fn setup(mut commands: Commands) {
             builder.spawn(WallBundle::new(WallLocation::Bottom));
             for y in 0..=(GRID_HEIGHT as i32) {
                 for x in 0..=(GRID_WIDTH as i32) {
-
-                    let is_alive = rng.gen_bool(1. / 4.);
+                    let is_alive = starting_cells.iter().any(|&v| v.x == x && v.y == y);
 
                     builder.spawn((
                         SpriteBundle {
+                            visibility: if is_alive { Visibility::Visible } else { Visibility::Hidden },
                             sprite: Sprite {
                                 custom_size: Some(Vec2::splat(CELL_SIZE)),
-                                color: WALL_COLOR,
+                                color: CELL_COLOR,
                                 ..default()
                             },
                             transform: Transform::from_xyz(
@@ -89,16 +119,6 @@ fn setup(mut commands: Commands) {
         });
 }
 
-fn check_cells(mut query: Query<&mut Sprite, With<Cell>>) {
-    let mut rng = rand::thread_rng();
-    let random_color = Color::srgb(rng.gen(), rng.gen(), rng.gen());
-    let mut count = 0 ;
-    for mut sprite in &mut query {
-        sprite.color = random_color;
-        count += 1;
-    }
-    println!("Count: {}", count);
-}
 
 fn update_cells(
     mut commands: Commands,
@@ -109,15 +129,18 @@ fn update_cells(
         .map(|(_, cell, state, _)| (cell.coords.clone(), state.clone()))
         .collect();
 
-    for (coord, state) in map {
-        println!("{state:?}");
-    }
-    let mut rng = rand::thread_rng();
-    for (entity, cell, mut cellState, mut visibility) in &mut query {
-        cellState.toggle();
+    for (entity, cell, cell_state, mut visibility) in &mut query {
+        let neighbor_coords = cell.get_neighbor_coords();
+        let neighbor_states: Vec<CellState> = neighbor_coords
+            .into_iter()
+            .filter_map(|i| map.get(&i).cloned())
+            .collect();
 
-        *visibility = if cellState.is_alive { Visibility::Visible } else { Visibility::Hidden };
-                    let is_alive = rng.gen_bool(1. / 4.);
-        commands.entity(entity).try_insert(CellState { is_alive });
+        let alive_count = neighbor_states.into_iter().filter(|x| x.is_alive == true).count();
+        let alive = matches!((cell_state.is_alive, alive_count), (true, 2 | 3) | (false, 3));
+        
+        commands.entity(entity).try_insert(CellState { is_alive: alive });
+        *visibility = if alive { Visibility::Visible } else { Visibility::Hidden };
     }
+    return;
 }
