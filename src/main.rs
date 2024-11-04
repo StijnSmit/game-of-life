@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
 };
 
+use std::collections::HashMap;
 use rand::Rng;
 
 // Constants
@@ -29,7 +30,8 @@ fn main() {
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, check_cells)
+        //.add_systems(FixedUpdate, (check_cells, update_cells))
+        .add_systems(FixedUpdate, update_cells)
         .run();
 }
 
@@ -88,15 +90,42 @@ impl WallBundle {
     }
 }
 
+const NEIGHBOR_COORDINATES: [IVec2; 8] = [
+// Top Left 
+    IVec2::new(-1, -1),
+// Top
+    IVec2::new(0, -1),
+// Top Right 
+    IVec2::new(1, -1),
+
+// Left 
+    IVec2::new(-1, -0),
+// Right 
+    IVec2::new(1, -0),
+
+// Bottom Left 
+    IVec2::new(-1, 1),
+// Bottom
+    IVec2::new(0, 1),
+// Bottom Right 
+    IVec2::new(1, 1),
+];
+
 #[derive(Component)]
 struct Cell { 
     // The 2d coordinates
-    coords: IVec2,
+    pub coords: IVec2,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Debug)]
 struct CellState {
-    alive: bool,
+    is_alive: bool,
+}
+
+impl CellState {
+    fn toggle(&mut self) {
+        self.is_alive = !self.is_alive;
+    }
 }
 
 // Setups
@@ -106,6 +135,7 @@ fn setup_camera(mut commands: Commands) {
 }
 
 fn setup(mut commands: Commands) {
+    let mut rng = rand::thread_rng();
     commands
         .spawn(SpatialBundle::from_transform(Transform::from_xyz(
             -(GRID_WIDTH * CELL_SIZE) / 2.,
@@ -120,7 +150,8 @@ fn setup(mut commands: Commands) {
             for y in 0..=(GRID_HEIGHT as i32) {
                 for x in 0..=(GRID_WIDTH as i32) {
 
-                    if x == 44 && y == 44 {
+                    let is_alive = rng.gen_bool(1. / 4.);
+
                     builder.spawn((
                         SpriteBundle {
                             sprite: Sprite {
@@ -136,26 +167,7 @@ fn setup(mut commands: Commands) {
                             ..default()
                         },
                         Cell { coords: IVec2::new(x, y) },
-                        CellState { alive: false }
-                    ));
-                    continue;
-                    }
-                
-                    builder.spawn((
-                        SpriteBundle {
-                            sprite: Sprite {
-                                custom_size: Some(Vec2::splat(CELL_SIZE)),
-                                color: CELL_COLOR,
-                                ..default()
-                            },
-                            transform: Transform::from_xyz(
-                                CELL_SIZE * x as f32,
-                                CELL_SIZE * y as f32,
-                                0.,
-                            ),
-                            ..default()
-                        },
-                        CellState { alive: false }
+                        CellState { is_alive }
                     ));
                 }
             }
@@ -165,7 +177,32 @@ fn setup(mut commands: Commands) {
 fn check_cells(mut query: Query<&mut Sprite, With<Cell>>) {
     let mut rng = rand::thread_rng();
     let random_color = Color::srgb(rng.gen(), rng.gen(), rng.gen());
+    let mut count = 0 ;
     for mut sprite in &mut query {
         sprite.color = random_color;
+        count += 1;
+    }
+    println!("Count: {}", count);
+}
+
+fn update_cells(
+    mut commands: Commands,
+    mut query: Query<(Entity, &Cell, &mut CellState, &mut Visibility)>
+) {
+    let map: HashMap<IVec2, CellState> = query
+        .iter()
+        .map(|(_, cell, state, _)| (cell.coords.clone(), state.clone()))
+        .collect();
+
+    for (coord, state) in map {
+        println!("{state:?}");
+    }
+    let mut rng = rand::thread_rng();
+    for (entity, cell, mut cellState, mut visibility) in &mut query {
+        cellState.toggle();
+
+        *visibility = if cellState.is_alive { Visibility::Visible } else { Visibility::Hidden };
+                    let is_alive = rng.gen_bool(1. / 4.);
+        commands.entity(entity).try_insert(CellState { is_alive });
     }
 }
