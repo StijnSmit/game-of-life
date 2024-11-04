@@ -5,18 +5,26 @@ use bevy::{
 use std::collections::HashMap;
 use rand::Rng;
 
+pub mod cell;
+pub mod cell_state;
+pub mod wall;
+
+use crate::cell::Cell;
+use crate::cell_state::CellState;
+use crate::wall::{WallLocation, WallBundle};
+
 // Constants
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
 
-const GRID_WIDTH: f32 = 100.;
-const GRID_HEIGHT: f32 = 100.;
+const GRID_WIDTH: f32 = 10.;
+const GRID_HEIGHT: f32 = 10.;
 
 // Walls
 const WALL_THICKNESS: f32 = 10.0;
 
 // Cell
-const CELL_SIZE: f32 = 5.;
+pub const CELL_SIZE: f32 = 15.;
 
 // Colors
 const BACKGROUND_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
@@ -33,99 +41,6 @@ fn main() {
         //.add_systems(FixedUpdate, (check_cells, update_cells))
         .add_systems(FixedUpdate, update_cells)
         .run();
-}
-
-// Wall
-enum WallLocation {
-    Left, Right, Bottom, Top
-}
-
-impl WallLocation {
-    fn position(&self) -> Vec2 {
-        match self {
-            WallLocation::Left => Vec2::new(-(WALL_THICKNESS * 0.5) -(CELL_SIZE * 0.5), GRID_HEIGHT * CELL_SIZE * 0.5),
-            WallLocation::Right => Vec2::new((CELL_SIZE * 0.5) + (GRID_WIDTH * CELL_SIZE) + (WALL_THICKNESS * 0.5), GRID_HEIGHT * CELL_SIZE * 0.5),
-            WallLocation::Bottom => Vec2::new(GRID_WIDTH * CELL_SIZE * 0.5, -(WALL_THICKNESS * 0.5) -(CELL_SIZE * 0.5)),
-            WallLocation::Top => Vec2::new(GRID_WIDTH * CELL_SIZE * 0.5, (GRID_HEIGHT * CELL_SIZE) + (WALL_THICKNESS * 0.5) + (CELL_SIZE * 0.5)),
-        }
-    }
-
-    fn size(&self) -> Vec2 {
-        match self {
-            WallLocation::Left | WallLocation::Right => {
-                Vec2::new(WALL_THICKNESS, GRID_HEIGHT * CELL_SIZE + (WALL_THICKNESS * 2.) + CELL_SIZE)
-            }
-            WallLocation::Bottom | WallLocation::Top => {
-                Vec2::new(GRID_WIDTH * CELL_SIZE + CELL_SIZE, WALL_THICKNESS)
-            }
-        }
-    }
-
-    fn color(&self) -> Color {
-        WALL_COLOR
-    }
-}
-
-#[derive(Bundle)]
-struct WallBundle {
-    sprite_bundle: SpriteBundle,
-}
-
-impl WallBundle {
-    fn new(location: WallLocation) -> WallBundle {
-        WallBundle {
-            sprite_bundle: SpriteBundle {
-                transform: Transform {
-                    translation: location.position().extend(0.0),
-                    ..default() 
-                },
-                sprite: Sprite {
-                    color: location.color(),
-                    custom_size: Some(location.size()),
-                    ..default()
-                },
-                ..default()
-            }
-        }
-    }
-}
-
-const NEIGHBOR_COORDINATES: [IVec2; 8] = [
-// Top Left 
-    IVec2::new(-1, -1),
-// Top
-    IVec2::new(0, -1),
-// Top Right 
-    IVec2::new(1, -1),
-
-// Left 
-    IVec2::new(-1, -0),
-// Right 
-    IVec2::new(1, -0),
-
-// Bottom Left 
-    IVec2::new(-1, 1),
-// Bottom
-    IVec2::new(0, 1),
-// Bottom Right 
-    IVec2::new(1, 1),
-];
-
-#[derive(Component)]
-struct Cell { 
-    // The 2d coordinates
-    pub coords: IVec2,
-}
-
-#[derive(Component, Clone, Debug)]
-struct CellState {
-    is_alive: bool,
-}
-
-impl CellState {
-    fn toggle(&mut self) {
-        self.is_alive = !self.is_alive;
-    }
 }
 
 // Setups
