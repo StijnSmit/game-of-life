@@ -1,5 +1,6 @@
 use bevy::{
     prelude::*,
+    window::PrimaryWindow,
 };
 
 use std::collections::HashMap;
@@ -8,9 +9,7 @@ pub mod cell;
 pub mod cell_state;
 pub mod wall;
 
-use crate::cell::Cell;
-use crate::cell_state::CellState;
-use crate::wall::{WallLocation, WallBundle};
+use crate::cell::Cell; use crate::cell_state::CellState; use crate::wall::{WallLocation, WallBundle};
 
 const GRID_WIDTH: f32 = 30.;
 const GRID_HEIGHT: f32 = 30.;
@@ -59,8 +58,10 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .insert_resource(Time::<Fixed>::from_hz(2.0))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
+        .init_resource::<MyWorldCoords>()
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup)
+        .add_systems(Update, (my_cursor_system, mouse_input))
         .add_systems(FixedUpdate, update_cells)
         .run();
 }
@@ -70,11 +71,16 @@ fn setup_shape(shape: &[IVec2], position: IVec2) -> Vec<IVec2>{
     shape.iter().map(|&cell| cell + position).collect()
 }
 
+#[derive(Resource, Default)]
+struct MyWorldCoords(Vec2);
+
+#[derive(Component)]
+struct MainCamera;
+
 // Setups
 fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((Camera2dBundle::default(), MainCamera));
 }
-
 
 fn setup(mut commands: Commands) {
 
@@ -117,6 +123,73 @@ fn setup(mut commands: Commands) {
                 }
             }
         });
+
+
+                    commands.spawn((
+                        SpriteBundle {
+                            sprite: Sprite {
+                                custom_size: Some(Vec2::splat(CELL_SIZE)),
+                                color: CELL_COLOR,
+                                ..default()
+                            },
+                            transform: Transform::from_xyz(
+                                CELL_SIZE * 0 as f32,
+                                CELL_SIZE * 0 as f32,
+                                0.,
+                            ),
+                            ..default()
+                        },
+                    ));
+
+
+}
+
+fn my_cursor_system(
+    mut mycoords: ResMut<MyWorldCoords>,
+    // query to get the window (so we can read the current cursor position)
+    q_window: Query<&Window, With<PrimaryWindow>>,
+    // query to get the camera transform
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+) {
+    // Get the camera info and transform
+    let (camera, camera_transform) = q_camera.single();
+
+    // There is only one primary window, so can use single
+    let window = q_window.single();
+
+    // Check if the cursor is inside the window and get its position
+    // then, ask bevy to convert  into world coordinates, nad truncate to discard Z
+    if let Some(world_position) = window.cursor_position()
+        .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+        .map(|ray| ray.origin.truncate())
+    {
+        mycoords.0 = world_position;
+    }
+}
+
+fn mouse_input(
+    mycoords: Res<MyWorldCoords>,
+    buttons: Res<ButtonInput<MouseButton>>,
+) {
+    let position = mycoords.0.as_ivec2();
+    let localized_position = position / (CELL_SIZE as i32);
+
+    if buttons.just_pressed(MouseButton::Left) {
+        // Left button pressed
+        dbg!("Left button pressed {}", localized_position);
+    }
+    if buttons.just_released(MouseButton::Left) {
+        // Left button pressed
+        dbg!("Left button released! {}", localized_position);
+    }
+    if buttons.just_pressed(MouseButton::Right) {
+        // Right button pressed
+        dbg!("Right button pressed at: {}", localized_position);
+    }
+    if buttons.just_released(MouseButton::Right) {
+        // Right button pressed
+        dbg!("Right button released!{}", localized_position);
+    }
 }
 
 
