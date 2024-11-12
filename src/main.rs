@@ -18,7 +18,7 @@ const GRID_HEIGHT: f32 = 30.;
 const WALL_THICKNESS: f32 = 10.0;
 
 // Cell
-pub const CELL_SIZE: f32 = 15.;
+pub const CELL_SIZE: f32 = 10.;
 
 // Colors
 const BACKGROUND_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
@@ -60,6 +60,7 @@ fn main() {
         .insert_resource(Time::<Fixed>::from_hz(2.0))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .init_resource::<MyWorldCoords>()
+        .add_systems(Startup, setup_resolution)
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup)
         .add_systems(Update, (my_cursor_system, mouse_input))
@@ -77,6 +78,13 @@ struct MyWorldCoords(Vec2);
 
 #[derive(Component)]
 struct MainCamera;
+
+fn setup_resolution(
+    mut windows: Query<&mut Window>
+) {
+    let mut window = windows.single_mut();
+    window.resolution.set(400., 400.);
+}
 
 // Setups
 fn setup_camera(mut commands: Commands) {
