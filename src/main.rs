@@ -63,8 +63,9 @@ fn main() {
         .add_systems(Startup, setup_resolution)
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup)
-        .add_systems(Update, (my_cursor_system, mouse_input))
-        .add_systems(FixedUpdate, (update_cells.run_if(in_state(MyGameModeState::Playing))))
+        .add_systems(Update, (my_cursor_system, mouse_input, keyboard_input))
+        .add_systems(FixedUpdate, update_cells.run_if(in_state(MyGameModeState::Playing)))
+        .add_systems(Update, draw_cells)
         .run();
 }
 
@@ -179,8 +180,7 @@ fn my_cursor_system(
 fn mouse_input(
     mycoords: Res<MyWorldCoords>,
     buttons: Res<ButtonInput<MouseButton>>,
-    state: Res<State<MyGameModeState>>,
-    mut next_state: ResMut<NextState<MyGameModeState>>,
+    mut query: Query<(&Cell, &mut CellState)>,
 ) {
     let position = mycoords.0.as_ivec2();
     let localized_position = position / (CELL_SIZE as i32);
@@ -188,29 +188,46 @@ fn mouse_input(
     if buttons.just_pressed(MouseButton::Left) {
         // Left button pressed
         dbg!("Left button pressed {}", localized_position);
+        for (cell, mut state) in &mut query {
+            println!("{} click is -> {}", cell.coords, localized_position);
+            if cell.coords == localized_position {
+            dbg!("Found the cell, now  being toggled!");
+                state.toggle();
+            }
+        }
     }
     if buttons.just_released(MouseButton::Left) {
         // Left button pressed
         dbg!("Left button released! {}", localized_position);
+    }
+}
+
+fn keyboard_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    state: Res<State<MyGameModeState>>,
+    mut next_state: ResMut<NextState<MyGameModeState>>,
+) {
+    if keys.just_pressed(KeyCode::Space) {
         match state.get() {
             MyGameModeState::Paused => next_state.set(MyGameModeState::Playing),
             MyGameModeState::Playing => next_state.set(MyGameModeState::Paused),
         }
     }
-    if buttons.just_pressed(MouseButton::Right) {
-        // Right button pressed
-        dbg!("Right button pressed at: {}", localized_position);
+}
+
+fn draw_cells(
+    mut query: Query<(&CellState, &mut Visibility)>
+) {
+    for (cell_state, mut visibility) in &mut query {
+        *visibility = if cell_state.is_alive { Visibility::Visible } else { Visibility::Hidden };
     }
-    if buttons.just_released(MouseButton::Right) {
-        // Right button pressed
-        dbg!("Right button released!{}", localized_position);
-    }
+
 }
 
 
 fn update_cells(
     mut commands: Commands,
-    mut query: Query<(Entity, &Cell, &mut CellState, &mut Visibility)>
+    mut query: Query<(Entity, &Cell, &CellState, &mut Visibility)>
 ) {
     let map: HashMap<IVec2, CellState> = query
         .iter()
@@ -228,7 +245,7 @@ fn update_cells(
         let alive = matches!((cell_state.is_alive, alive_count), (true, 2 | 3) | (false, 3));
         
         commands.entity(entity).try_insert(CellState { is_alive: alive });
-        *visibility = if alive { Visibility::Visible } else { Visibility::Hidden };
+//        *visibility = if alive { Visibility::Visible } else { Visibility::Hidden };
     }
     return;
 }
