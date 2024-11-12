@@ -56,13 +56,14 @@ const GLIDER_SHAPE: [IVec2; 5] = [
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .init_state::<MyGameModeState>()
         .insert_resource(Time::<Fixed>::from_hz(2.0))
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .init_resource::<MyWorldCoords>()
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, setup)
         .add_systems(Update, (my_cursor_system, mouse_input))
-        .add_systems(FixedUpdate, update_cells)
+        .add_systems(FixedUpdate, (update_cells.run_if(in_state(MyGameModeState::Playing))))
         .run();
 }
 
@@ -170,6 +171,8 @@ fn my_cursor_system(
 fn mouse_input(
     mycoords: Res<MyWorldCoords>,
     buttons: Res<ButtonInput<MouseButton>>,
+    state: Res<State<MyGameModeState>>,
+    mut next_state: ResMut<NextState<MyGameModeState>>,
 ) {
     let position = mycoords.0.as_ivec2();
     let localized_position = position / (CELL_SIZE as i32);
@@ -181,6 +184,10 @@ fn mouse_input(
     if buttons.just_released(MouseButton::Left) {
         // Left button pressed
         dbg!("Left button released! {}", localized_position);
+        match state.get() {
+            MyGameModeState::Paused => next_state.set(MyGameModeState::Playing),
+            MyGameModeState::Playing => next_state.set(MyGameModeState::Paused),
+        }
     }
     if buttons.just_pressed(MouseButton::Right) {
         // Right button pressed
@@ -217,3 +224,11 @@ fn update_cells(
     }
     return;
 }
+
+#[derive(States, Default, Debug, Clone, PartialEq, Eq, Hash)]
+enum MyGameModeState {
+    #[default]
+    Paused,
+    Playing,
+}
+
