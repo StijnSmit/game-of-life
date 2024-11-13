@@ -8,50 +8,23 @@ use std::collections::HashMap;
 pub mod cell;
 pub mod cell_state;
 pub mod wall;
+pub mod lifes;
 
 use crate::cell::Cell; use crate::cell_state::CellState; use crate::wall::{WallLocation, WallBundle};
 
-const GRID_WIDTH: f32 = 30.;
-const GRID_HEIGHT: f32 = 30.;
+const GRID_WIDTH: f32 = 40.;
+const GRID_HEIGHT: f32 = 40.;
 
 // Walls
 const WALL_THICKNESS: f32 = 15.0;
 
 // Cell
-pub const CELL_SIZE: f32 = 15.;
+pub const CELL_SIZE: f32 = 10.;
 
 // Colors
 const BACKGROUND_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
 const WALL_COLOR: Color = Color::srgb(0.2, 0.2, 0.2);
 const CELL_COLOR: Color = Color::srgb(0.3, 0.3, 0.3);
-
-const STARTING_CELLS: [IVec2; 8] = [
-    // Tub
-    IVec2::new(20, 21),
-    IVec2::new(19, 20),
-    IVec2::new(21, 20),
-    IVec2::new(20, 19),
-    // Single dot
-    IVec2::new(2, 9),
-    // Blinker
-    IVec2::new(2, 21),
-    IVec2::new(3, 21),
-    IVec2::new(4, 21),
-];
-
-const BLINKER_SHAPE: [IVec2; 3] = [
-    IVec2::new(0, 0),
-    IVec2::new(1, 0),
-    IVec2::new(2, 0),
-];
-
-const GLIDER_SHAPE: [IVec2; 5] = [
-    IVec2::new(0, 1),    
-    IVec2::new(1, 0),    
-    IVec2::new(2, 0),    
-    IVec2::new(2, 1),    
-    IVec2::new(2, 2),    
-];
 
 fn main() {
     App::new()
@@ -171,11 +144,15 @@ fn mouse_input(
     }
     let localized_position = (position / (CELL_SIZE as i32)) + IVec2::new(GRID_WIDTH as i32 / 2, GRID_HEIGHT as i32 / 2);
 
+
     if buttons.just_pressed(MouseButton::Left) {
         println!("{} l: {}", position, localized_position);
-        // Left button pressed
+        // fn setup_shape(shape: &[IVec2], position: IVec2) -> Vec<IVec2>{
+        let shape = setup_shape(&lifes::PULSAR_SHAPE, localized_position);
+        println!("{:?}", shape);
+
         for (cell, mut state) in &mut query {
-            if cell.coords == localized_position {
+            if shape.contains(&cell.coords) {
                 state.toggle();
             }
         }
