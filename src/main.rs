@@ -15,10 +15,10 @@ const GRID_WIDTH: f32 = 30.;
 const GRID_HEIGHT: f32 = 30.;
 
 // Walls
-const WALL_THICKNESS: f32 = 10.0;
+const WALL_THICKNESS: f32 = 15.0;
 
 // Cell
-pub const CELL_SIZE: f32 = 10.;
+pub const CELL_SIZE: f32 = 15.;
 
 // Colors
 const BACKGROUND_COLOR: Color = Color::srgb(1.0, 1.0, 1.0);
@@ -84,7 +84,7 @@ fn setup_resolution(
     mut windows: Query<&mut Window>
 ) {
     let mut window = windows.single_mut();
-    window.resolution.set(400., 400.);
+    window.resolution.set(700., 500.);
 }
 
 // Setups
@@ -93,10 +93,6 @@ fn setup_camera(mut commands: Commands) {
 }
 
 fn setup(mut commands: Commands) {
-
-    let mut starting_cells = Vec::from(STARTING_CELLS);
-    starting_cells.extend(setup_shape(&GLIDER_SHAPE, IVec2::new(10, 10)));
-
     commands
         .spawn(SpatialBundle::from_transform(Transform::from_xyz(
             -(GRID_WIDTH * CELL_SIZE) / 2.,
@@ -110,11 +106,9 @@ fn setup(mut commands: Commands) {
             builder.spawn(WallBundle::new(WallLocation::Bottom));
             for y in 0..=(GRID_HEIGHT as i32) {
                 for x in 0..=(GRID_WIDTH as i32) {
-                    let is_alive = starting_cells.iter().any(|&v| v.x == x && v.y == y);
-
                     builder.spawn((
                         SpriteBundle {
-                            visibility: if is_alive { Visibility::Visible } else { Visibility::Hidden },
+                            visibility: Visibility::Hidden,
                             sprite: Sprite {
                                 custom_size: Some(Vec2::splat(CELL_SIZE)),
                                 color: CELL_COLOR,
@@ -128,30 +122,11 @@ fn setup(mut commands: Commands) {
                             ..default()
                         },
                         Cell { coords: IVec2::new(x, y) },
-                        CellState { is_alive }
+                        CellState { is_alive: false }
                     ));
                 }
             }
         });
-
-
-                    commands.spawn((
-                        SpriteBundle {
-                            sprite: Sprite {
-                                custom_size: Some(Vec2::splat(CELL_SIZE)),
-                                color: CELL_COLOR,
-                                ..default()
-                            },
-                            transform: Transform::from_xyz(
-                                CELL_SIZE * 0 as f32,
-                                CELL_SIZE * 0 as f32,
-                                0.,
-                            ),
-                            ..default()
-                        },
-                    ));
-
-
 }
 
 fn my_cursor_system(
@@ -182,23 +157,28 @@ fn mouse_input(
     buttons: Res<ButtonInput<MouseButton>>,
     mut query: Query<(&Cell, &mut CellState)>,
 ) {
-    let position = mycoords.0.as_ivec2();
-    let localized_position = position / (CELL_SIZE as i32);
+    let mut position = mycoords.0.as_ivec2();// + IVec2::new(CELL_SIZE as i32 / 2, CELL_SIZE as i32 / 2);
+    let half_size = CELL_SIZE as i32 / 2;
+    if position.x > 0 {
+        position.x += half_size;
+    } else {
+        position.x -= half_size;
+    }
+    if position.y > 0 {
+        position.y += half_size;
+    } else {
+        position.y -= half_size;
+    }
+    let localized_position = (position / (CELL_SIZE as i32)) + IVec2::new(GRID_WIDTH as i32 / 2, GRID_HEIGHT as i32 / 2);
 
     if buttons.just_pressed(MouseButton::Left) {
+        println!("{} l: {}", position, localized_position);
         // Left button pressed
-        dbg!("Left button pressed {}", localized_position);
         for (cell, mut state) in &mut query {
-            println!("{} click is -> {}", cell.coords, localized_position);
             if cell.coords == localized_position {
-            dbg!("Found the cell, now  being toggled!");
                 state.toggle();
             }
         }
-    }
-    if buttons.just_released(MouseButton::Left) {
-        // Left button pressed
-        dbg!("Left button released! {}", localized_position);
     }
 }
 
@@ -221,7 +201,6 @@ fn draw_cells(
     for (cell_state, mut visibility) in &mut query {
         *visibility = if cell_state.is_alive { Visibility::Visible } else { Visibility::Hidden };
     }
-
 }
 
 
@@ -234,7 +213,7 @@ fn update_cells(
         .map(|(_, cell, state, _)| (cell.coords.clone(), state.clone()))
         .collect();
 
-    for (entity, cell, cell_state, mut visibility) in &mut query {
+    for (entity, cell, cell_state, visibility) in &mut query {
         let neighbor_coords = cell.get_neighbor_coords();
         let neighbor_states: Vec<CellState> = neighbor_coords
             .into_iter()
@@ -245,7 +224,6 @@ fn update_cells(
         let alive = matches!((cell_state.is_alive, alive_count), (true, 2 | 3) | (false, 3));
         
         commands.entity(entity).try_insert(CellState { is_alive: alive });
-//        *visibility = if alive { Visibility::Visible } else { Visibility::Hidden };
     }
     return;
 }
